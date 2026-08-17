@@ -1,0 +1,60 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Read version
+        id: ver
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $version = $tag.TrimStart("v")
+          echo "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Publish
+        run: dotnet publish FabHardwareMonitor/FabHardwareMonitor.csproj -c Release -r win-x64 --self-contained true -o publish /p:Version=${{ steps.ver.outputs.version }}
+
+      - name: Install vpk
+        run: dotnet tool install -g vpk
+
+      - name: Pack Velopack
+        shell: pwsh
+        run: |
+          $env:PATH += ";$env:USERPROFILE\.dotnet\tools"
+          vpk pack `
+            --packId FabHardwareMonitor `
+            --packVersion ${{ steps.ver.outputs.version }} `
+            --packDir publish `
+            --mainExe FabHardwareMonitor.exe `
+            --packTitle "Fab Hardware Monitor" `
+            --packAuthors "Saad Minhas" `
+            --outputDir Releases
+
+      - name: Publish GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: pwsh
+        run: |
+          $env:PATH += ";$env:USERPROFILE\.dotnet\tools"
+          vpk upload github `
+            --repoUrl ${{ format('https://github.com/{0}', github.repository) }} `
+            --publish `
+            --releaseName "Fab Hardware Monitor ${{ steps.ver.outputs.version }}" `
+            --tag ${{ github.ref_name }} `
+            --outputDir Releases `
+            --token $env:GITHUB_TOKEN

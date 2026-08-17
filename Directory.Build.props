@@ -1,0 +1,11 @@
+<Project>
+  <PropertyGroup>
+    <Version>1.0.0</Version>
+    <Company>Fabric Visuals Ltd</Company>
+    <Authors>Saad Minhas</Authors>
+    <Product>Fab Hardware Monitor</Product>
+    <Copyright>Copyright © Fabric Visuals Ltd</Copyright>
+    <NeutralLanguage>en-GB</NeutralLanguage>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+  </PropertyGroup>
+</Project>
