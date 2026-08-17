@@ -9,8 +9,12 @@ public static class Program
     {
         VelopackApp.Build()
             .OnBeforeUninstallFastCallback(_ => new Services.AutostartService().Unregister())
-            .OnFirstRun(_ => new Services.AutostartService().Register())
             .Run();
+
+        if (Elevation.RelaunchElevated())
+        {
+            return;
+        }
 
         var application = new App();
         application.InitializeComponent();
