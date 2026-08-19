@@ -107,8 +107,9 @@ public sealed partial class UpdateService : ObservableObject
                 await DownloadAndApplyAsync(update);
             }
         }
-        catch
+        catch (Exception ex)
         {
+            CrashLog.Write("Updates", ex);
             Status = UpdateStatusKind.Failed;
             ApplyPresentation();
         }
@@ -136,8 +137,9 @@ public sealed partial class UpdateService : ObservableObject
             Status = UpdateStatusKind.Available;
             ApplyPresentation();
         }
-        catch
+        catch (Exception ex)
         {
+            CrashLog.Write("Updates", ex);
             Status = UpdateStatusKind.Failed;
             ApplyPresentation();
         }
@@ -184,7 +186,7 @@ public sealed partial class UpdateService : ObservableObject
                 Message = "Restarting to finish the update…";
                 break;
             case UpdateStatusKind.Failed:
-                Message = "Couldn't check for updates.";
+                Message = "Couldn't check GitHub Releases. The repository must be public and contain a published release.";
                 ShowRetryButton = true;
                 break;
             case UpdateStatusKind.NotInstalled:
