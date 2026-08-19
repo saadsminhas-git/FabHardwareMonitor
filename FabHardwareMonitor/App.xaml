@@ -1,19 +1,19 @@
 <Application x:Class="FabHardwareMonitor.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:FabHardwareMonitor"
              ShutdownMode="OnExplicitShutdown">
     <Application.Resources>
-        <SolidColorBrush x:Key="Ink" Color="#FF121417" />
-        <SolidColorBrush x:Key="Copper" Color="#FFC4A574" />
-        <Style TargetType="ContextMenu">
-            <Setter Property="Background" Value="#FF1A1D21" />
-            <Setter Property="Foreground" Value="#FFF4F1EA" />
-            <Setter Property="BorderBrush" Value="#33C4A574" />
-            <Setter Property="FontFamily" Value="Bahnschrift" />
-        </Style>
-        <Style TargetType="MenuItem">
-            <Setter Property="Foreground" Value="#FFF4F1EA" />
-            <Setter Property="Padding" Value="12,6" />
-        </Style>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Themes/Palette.Light.xaml" />
+                <ResourceDictionary Source="Themes/Fabric.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <BooleanToVisibilityConverter x:Key="BoolVis" />
+            <local:InverseBooleanToVisibilityConverter x:Key="NotBoolVis" />
+            <local:TextToVisibilityConverter x:Key="TextVis" />
+            <local:TrackingConverter x:Key="Tracked" />
+        </ResourceDictionary>
     </Application.Resources>
 </Application>

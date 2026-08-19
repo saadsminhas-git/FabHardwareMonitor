@@ -5,7 +5,6 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
-    <UseWindowsForms>true</UseWindowsForms>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <RootNamespace>FabHardwareMonitor</RootNamespace>
     <AssemblyName>FabHardwareMonitor</AssemblyName>
@@ -16,6 +15,15 @@
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <ApplicationTitle>Fab Hardware Monitor</ApplicationTitle>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+    <DebuggerSupport>false</DebuggerSupport>
+    <CopyOutputSymbolsToPublishDirectory>false</CopyOutputSymbolsToPublishDirectory>
+    <ErrorReport>none</ErrorReport>
   </PropertyGroup>
 
   <ItemGroup>
@@ -24,8 +32,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Resource Include="Assets\fabric-visuals-logo.png" />
-    <None Include="Assets\app.ico" />
+    <None Remove="Assets\app-icon.png" />
+    <None Remove="Assets\tray.ico" />
+    <None Remove="Assets\fabric-visuals-mark.png" />
+    <Resource Include="Assets\app-icon.png" />
+    <Resource Include="Assets\tray.ico" />
+    <Resource Include="Assets\fabric-visuals-mark.png" />
+    <Resource Include="..\legal\PRIVACY-AND-TERMS.md" Link="Assets\legal\PRIVACY-AND-TERMS.md" />
   </ItemGroup>
 
   <ItemGroup>
@@ -35,4 +48,37 @@
     <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.6" />
     <PackageReference Include="Velopack" Version="1.2.0" />
   </ItemGroup>
+
+  <!-- Debugger dumps and unused WPF/WinForms assemblies are not referenced at runtime. -->
+  <Target Name="StripUnusedPublishFiles" AfterTargets="Publish" Condition="'$(Configuration)' == 'Release'">
+    <ItemGroup>
+      <_Strip Include="$(PublishDir)createdump.exe" />
+      <_Strip Include="$(PublishDir)mscordaccore.dll" />
+      <_Strip Include="$(PublishDir)mscordaccore_*.dll" />
+      <_Strip Include="$(PublishDir)mscordbi.dll" />
+      <_Strip Include="$(PublishDir)Microsoft.DiaSymReader.Native*.dll" />
+      <_Strip Include="$(PublishDir)*.pdb" />
+      <_Strip Include="$(PublishDir)Microsoft.Windows.SDK.NET.dll" />
+      <_Strip Include="$(PublishDir)System.Windows.Forms.dll" />
+      <_Strip Include="$(PublishDir)System.Windows.Forms.Design.dll" />
+      <_Strip Include="$(PublishDir)System.Windows.Forms.Design.Editors.dll" />
+      <_Strip Include="$(PublishDir)System.Windows.Forms.Primitives.dll" />
+      <_Strip Include="$(PublishDir)Microsoft.VisualBasic.dll" />
+      <_Strip Include="$(PublishDir)Microsoft.VisualBasic.Core.dll" />
+      <_Strip Include="$(PublishDir)Microsoft.VisualBasic.Forms.dll" />
+      <_Strip Include="$(PublishDir)System.Windows.Controls.Ribbon.dll" />
+      <_Strip Include="$(PublishDir)ReachFramework.dll" />
+      <_Strip Include="$(PublishDir)System.Printing.dll" />
+      <_Strip Include="$(PublishDir)PresentationFramework.Aero.dll" />
+      <_Strip Include="$(PublishDir)PresentationFramework.AeroLite.dll" />
+      <_Strip Include="$(PublishDir)PresentationFramework.Classic.dll" />
+      <_Strip Include="$(PublishDir)PresentationFramework.Fluent.dll" />
+      <_Strip Include="$(PublishDir)PresentationFramework.Luna.dll" />
+      <_Strip Include="$(PublishDir)PresentationFramework.Royale.dll" />
+      <_Strip Include="$(PublishDir)msquic.dll" />
+      <_Strip Include="$(PublishDir)System.Net.Quic.dll" />
+      <_Strip Include="$(PublishDir)clrgcexp.dll" />
+    </ItemGroup>
+    <Delete Files="@(_Strip)" TreatErrorsAsWarnings="true" />
+  </Target>
 </Project>

@@ -1,7 +1,7 @@
 <Project>
   <PropertyGroup>
-    <Version>1.0.1</Version>
-    <Company>Fabric Visuals Ltd</Company>
+    <Version>1.0.2</Version>
+    <Company>Fabric Visuals</Company>
     <Authors>Saad Minhas</Authors>
     <Product>Fab Hardware Monitor</Product>
     <Copyright>Copyright © Fabric Visuals Ltd</Copyright>

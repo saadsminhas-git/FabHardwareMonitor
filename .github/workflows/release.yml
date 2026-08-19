@@ -26,24 +26,10 @@ jobs:
           $version = $tag.TrimStart("v")
           echo "version=$version" >> $env:GITHUB_OUTPUT
 
-      - name: Publish
-        run: dotnet publish FabHardwareMonitor/FabHardwareMonitor.csproj -c Release -r win-x64 --self-contained true -o publish /p:Version=${{ steps.ver.outputs.version }}
-
-      - name: Install vpk
-        run: dotnet tool install -g vpk --version 1.2.0
-
       - name: Pack Velopack
         shell: pwsh
         run: |
-          $env:PATH += ";$env:USERPROFILE\.dotnet\tools"
-          vpk pack `
-            --packId FabHardwareMonitor `
-            --packVersion ${{ steps.ver.outputs.version }} `
-            --packDir publish `
-            --mainExe FabHardwareMonitor.exe `
-            --packTitle "Fab Hardware Monitor" `
-            --packAuthors "Saad Minhas" `
-            --outputDir Releases
+          powershell -NoProfile -ExecutionPolicy Bypass -File scripts/pack.ps1 -Version ${{ steps.ver.outputs.version }}
 
       - name: Publish GitHub Release
         env:

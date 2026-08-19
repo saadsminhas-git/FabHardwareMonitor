@@ -80,14 +80,16 @@ public sealed class HardwareSampler : IDisposable
         var cpu = Cpus().FirstOrDefault();
         var gpu = SelectGpu(gpuId);
         var cpuTemp = ResolveCpuTemp(cpuTempSensor);
+        var gpuTemp = FirstValue(gpu, SensorType.Temperature, "GPU Core", "GPU")
+                      ?? FirstValue(gpu, SensorType.Temperature);
 
         return new GpuSample(
             CpuName: cpu?.Name,
             GpuName: gpu?.Name,
             GpuId: gpu?.Identifier.ToString(),
-            CpuTemp: cpuTemp.Value,
+            CpuTemp: ValidTemp(cpuTemp.Value),
             CpuTempSensorName: cpuTemp.Name,
-            GpuTemp: FirstValue(gpu, SensorType.Temperature, "GPU Core", "GPU") ?? FirstValue(gpu, SensorType.Temperature),
+            GpuTemp: ValidTemp(gpuTemp),
             GpuLoad: FirstValue(gpu, SensorType.Load, "GPU Core", "D3D 3D", "GPU") ?? FirstValue(gpu, SensorType.Load),
             Vram: VramPercent(gpu));
     }
@@ -162,29 +164,29 @@ public sealed class HardwareSampler : IDisposable
         if (!string.IsNullOrWhiteSpace(overrideName))
         {
             var named = sensors.FirstOrDefault(s => s.Name.Equals(overrideName, StringComparison.OrdinalIgnoreCase));
-            if (named?.Value is not null)
+            if (ValidTemp(named?.Value) is { } namedTemp)
             {
-                return (named.Value, named.Name);
+                return (namedTemp, named!.Name);
             }
         }
 
         foreach (var name in CpuTempPriority)
         {
             var match = sensors.FirstOrDefault(s => s.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
-            if (match?.Value is not null)
+            if (ValidTemp(match?.Value) is { } matched)
             {
-                return (match.Value, match.Name);
+                return (matched, match!.Name);
             }
         }
 
         var ccd = sensors.FirstOrDefault(s =>
-            s.Name.Contains("CCD", StringComparison.OrdinalIgnoreCase) && s.Value is not null);
+            s.Name.Contains("CCD", StringComparison.OrdinalIgnoreCase) && ValidTemp(s.Value) is not null);
         if (ccd is not null)
         {
             return (ccd.Value, ccd.Name);
         }
 
-        var any = sensors.FirstOrDefault(s => s.Value is not null);
+        var any = sensors.FirstOrDefault(s => ValidTemp(s.Value) is not null);
         return (any?.Value, any?.Name);
     }
 
@@ -248,6 +250,8 @@ public sealed class HardwareSampler : IDisposable
 
         return names.Length == 0 ? sensors.FirstOrDefault()?.Value : null;
     }
+
+    private static double? ValidTemp(double? value) => value is > 0 ? value : null;
 
     private static IEnumerable<ISensor> AllSensors(IHardware hardware)
     {

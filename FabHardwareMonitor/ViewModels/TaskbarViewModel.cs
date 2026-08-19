@@ -1,8 +1,8 @@
 using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using FabHardwareMonitor.Models;
+using FabHardwareMonitor.Services;
 using Brush = System.Windows.Media.Brush;
-using Color = System.Windows.Media.Color;
 
 namespace FabHardwareMonitor.ViewModels;
 
@@ -16,30 +16,33 @@ public sealed partial class TaskbarViewModel : ObservableObject
     [ObservableProperty] private string _vramText = "--";
     [ObservableProperty] private string _cpuTempText = "--";
     [ObservableProperty] private string _gpuTempText = "--";
-    [ObservableProperty] private Brush _uploadBrush = Brushes.White;
-    [ObservableProperty] private Brush _downloadBrush = Brushes.White;
-    [ObservableProperty] private Brush _cpuBrush = Brushes.White;
-    [ObservableProperty] private Brush _memBrush = Brushes.White;
-    [ObservableProperty] private Brush _gpuBrush = Brushes.White;
-    [ObservableProperty] private Brush _vramBrush = Brushes.White;
-    [ObservableProperty] private Brush _cpuTempBrush = Brushes.White;
-    [ObservableProperty] private Brush _gpuTempBrush = Brushes.White;
-    [ObservableProperty] private bool _showVram = true;
+    [ObservableProperty] private Brush _labelBrush = Solid(Thresholds.DarkTaskbar.Label);
+    [ObservableProperty] private Brush _uploadBrush = Solid(Thresholds.White);
+    [ObservableProperty] private Brush _downloadBrush = Solid(Thresholds.White);
+    [ObservableProperty] private Brush _cpuBrush = Solid(Thresholds.White);
+    [ObservableProperty] private Brush _memBrush = Solid(Thresholds.White);
+    [ObservableProperty] private Brush _gpuBrush = Solid(Thresholds.White);
+    [ObservableProperty] private Brush _vramBrush = Solid(Thresholds.White);
+    [ObservableProperty] private Brush _cpuTempBrush = Solid(Thresholds.White);
+    [ObservableProperty] private Brush _gpuTempBrush = Solid(Thresholds.White);
+    [ObservableProperty] private Brush _plateBrush = Solid(Thresholds.DarkTaskbar.Plate);
+    [ObservableProperty] private bool _showPawnIoWarning;
+    public Brush RailBrush { get; } = Solid(Thresholds.Accent);
 
-    private Color _base = Thresholds.White;
+    private Color _preferredDarkValue = Thresholds.White;
+    private HardwareSnapshot? _last;
 
     public void ApplySettings(AppSettings settings)
     {
-        _base = Thresholds.ParseOrDefault(settings.TextColor);
-        ShowVram = settings.ShowVram;
-        var fallback = Solid(_base);
-        UploadBrush = fallback;
-        DownloadBrush = fallback;
+        _preferredDarkValue = Thresholds.ParseOrDefault(settings.TextColor);
+        Paint();
     }
+
+    public void ApplyShellTheme() => Paint();
 
     public void Apply(HardwareSnapshot snapshot)
     {
-        var fallback = _base;
+        _last = snapshot;
         UploadText = Thresholds.FormatRate(snapshot.UploadBytesPerSec);
         DownloadText = Thresholds.FormatRate(snapshot.DownloadBytesPerSec);
         CpuText = Thresholds.FormatPercent(snapshot.CpuUsage);
@@ -48,15 +51,43 @@ public sealed partial class TaskbarViewModel : ObservableObject
         VramText = Thresholds.FormatPercent(snapshot.VramUsage);
         CpuTempText = Thresholds.FormatTemp(snapshot.CpuTemp);
         GpuTempText = Thresholds.FormatTemp(snapshot.GpuTemp);
+        ShowPawnIoWarning = !new PawnIoGuard().IsInstalled();
+        Paint();
+    }
 
-        UploadBrush = Solid(fallback);
-        DownloadBrush = Solid(fallback);
-        CpuBrush = Solid(Thresholds.ForUsage(snapshot.CpuUsage, fallback));
-        MemBrush = Solid(Thresholds.ForUsage(snapshot.MemoryUsage, fallback));
-        GpuBrush = Solid(Thresholds.ForUsage(snapshot.GpuUsage, fallback));
-        VramBrush = Solid(Thresholds.ForUsage(snapshot.VramUsage, fallback));
-        CpuTempBrush = Solid(Thresholds.ForTemp(snapshot.CpuTemp, fallback));
-        GpuTempBrush = Solid(Thresholds.ForTemp(snapshot.GpuTemp, fallback));
+    private void Paint()
+    {
+        var lightBar = ThemeService.TaskbarIsLight;
+        var palette = Thresholds.ForTaskbar(lightBar);
+        if (!lightBar)
+        {
+            palette = palette with { Value = _preferredDarkValue };
+        }
+
+        LabelBrush = Solid(palette.Label);
+        PlateBrush = Solid(palette.Plate);
+        var value = Solid(palette.Value);
+        UploadBrush = value;
+        DownloadBrush = value;
+
+        var snap = _last;
+        if (snap is null)
+        {
+            CpuBrush = value;
+            MemBrush = value;
+            GpuBrush = value;
+            VramBrush = value;
+            CpuTempBrush = value;
+            GpuTempBrush = value;
+            return;
+        }
+
+        CpuBrush = Solid(Thresholds.ForUsage(snap.CpuUsage, palette));
+        MemBrush = Solid(Thresholds.ForUsage(snap.MemoryUsage, palette));
+        GpuBrush = Solid(Thresholds.ForUsage(snap.GpuUsage, palette));
+        VramBrush = Solid(Thresholds.ForUsage(snap.VramUsage, palette));
+        CpuTempBrush = Solid(Thresholds.ForTemp(snap.CpuTemp, palette));
+        GpuTempBrush = Solid(Thresholds.ForTemp(snap.GpuTemp, palette));
     }
 
     private static SolidColorBrush Solid(Color color)

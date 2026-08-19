@@ -8,7 +8,7 @@ public static class Program
     public static void Main(string[] args)
     {
         VelopackApp.Build()
-            .OnBeforeUninstallFastCallback(_ => new Services.AutostartService().Unregister())
+            .OnBeforeUninstallFastCallback(_ => Services.InstallCleanup.Run())
             .Run();
 
         if (Elevation.RelaunchElevated())

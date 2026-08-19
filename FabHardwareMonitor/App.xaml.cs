@@ -1,16 +1,16 @@
-using System.Drawing;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
+using System.Windows.Interop;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Threading;
+using FabHardwareMonitor.Interop;
 using FabHardwareMonitor.Models;
 using FabHardwareMonitor.Services;
 using FabHardwareMonitor.ViewModels;
 using FabHardwareMonitor.Views;
 using H.NotifyIcon;
 using Application = System.Windows.Application;
-using ContextMenu = System.Windows.Controls.ContextMenu;
-using MenuItem = System.Windows.Controls.MenuItem;
-using DrawingIcon = System.Drawing.Icon;
+using Point = System.Windows.Point;
 
 namespace FabHardwareMonitor;
 
@@ -21,8 +21,7 @@ public partial class App : Application
     private TaskbarWidget? _widget;
     private AboutWindow? _about;
     private SettingsWindow? _settingsWindow;
-    private ContextMenu? _menu;
-    private MenuItem? _aboutItem;
+    private AppMenuWindow? _menu;
     private SettingsStore _store = null!;
     private AppSettings _settings = null!;
     private AutostartService _autostart = null!;
@@ -30,11 +29,13 @@ public partial class App : Application
     private HardwarePipeline _pipeline = null!;
     private TaskbarViewModel _viewModel = null!;
     private PawnIoGuard _pawnIo = null!;
+    private bool _menuQueued;
 
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
+        CrashLog.Attach(this);
         _mutex = new Mutex(true, AppConstants.MutexName, out var created);
         if (!created)
         {
@@ -44,38 +45,102 @@ public partial class App : Application
 
         _store = new SettingsStore();
         _settings = _store.Load();
+        ThemeService.Start();
+
         _autostart = new AutostartService();
         _pawnIo = new PawnIoGuard();
+        await MaybeInstallPawnIoFromSetupAsync();
         _updates = new UpdateService(() => _settings.AutoUpdate);
         _viewModel = new TaskbarViewModel();
         _viewModel.ApplySettings(_settings);
+        _viewModel.ShowPawnIoWarning = !_pawnIo.IsInstalled();
+        ThemeService.Changed += () => Dispatcher.Invoke(_viewModel.ApplyShellTheme);
         _pipeline = new HardwarePipeline(_settings);
         _pipeline.Updated += snapshot => Dispatcher.Invoke(() => _viewModel.Apply(snapshot));
         _pipeline.Start();
         _autostart.Apply(_settings.StartWithWindows);
 
-        BuildMenu();
         BuildTray();
         await InitializeWidgetAsync();
         _ = _updates.CheckOnLaunchAsync();
-        await MaybePromptPawnIoAsync();
+    }
+
+    private async Task MaybeInstallPawnIoFromSetupAsync()
+    {
+        if (_pawnIo.IsInstalled() || !_pawnIo.InstallerRequested())
+        {
+            _pawnIo.ClearInstallerRequest();
+            return;
+        }
+
+        try
+        {
+            await _pawnIo.InstallAsync(silent: true);
+        }
+        catch
+        {
+            // Setup already finished; Settings can retry.
+        }
+
+        _pawnIo.ClearInstallerRequest();
     }
 
     public void ShowAppMenu()
     {
-        if (_menu is null)
+        // Must not open a popup/menu inside the taskbar's mouse-up. The leftover
+        // button-up is treated as a click-outside and the menu vanishes at once.
+        if (_menuQueued)
         {
             return;
         }
 
-        _menu.Placement = PlacementMode.MousePoint;
-        _menu.PlacementTarget = _widget;
-        _menu.IsOpen = true;
+        _menuQueued = true;
+        Dispatcher.BeginInvoke(OpenMenu, DispatcherPriority.ApplicationIdle);
+    }
+
+    private void OpenMenu()
+    {
+        _menuQueued = false;
+        if (_menu is { IsVisible: true })
+        {
+            return;
+        }
+
+        var menu = new AppMenuWindow
+        {
+            AboutLabel = _updates.AboutMenuHeader
+        };
+        menu.SettingsChosen += () => Dispatcher.BeginInvoke(() => ShowSettings());
+        menu.AboutChosen += () => Dispatcher.BeginInvoke(ShowAbout);
+        menu.ExitChosen += () => Dispatcher.BeginInvoke(Shutdown);
+        menu.Closed += (_, _) =>
+        {
+            if (ReferenceEquals(_menu, menu))
+            {
+                _menu = null;
+            }
+        };
+        _menu = menu;
+        menu.ShowAt(CursorInDip());
+    }
+
+    private Point CursorInDip()
+    {
+        Native.GetCursorPos(out var cursor);
+        var device = new Point(cursor.X, cursor.Y);
+        var visual = _widget as Visual ?? _menu as Visual;
+        if (visual is not null && PresentationSource.FromVisual(visual) is { CompositionTarget: { } target })
+        {
+            return target.TransformFromDevice.Transform(device);
+        }
+
+        return device;
     }
 
     protected override void OnExit(ExitEventArgs e)
     {
-        _pipeline.Dispose();
+        ThemeService.Stop();
+        _pipeline?.Dispose();
         _tray?.Dispose();
         _mutex?.ReleaseMutex();
         _mutex?.Dispose();
@@ -115,67 +180,71 @@ public partial class App : Application
         }
     }
 
-    private void BuildMenu()
-    {
-        _aboutItem = new MenuItem { Header = _updates.AboutMenuHeader };
-        _aboutItem.Click += (_, _) => ShowAbout();
-        _updates.PropertyChanged += (_, args) =>
-        {
-            if (args.PropertyName == nameof(UpdateService.AboutMenuHeader) && _aboutItem is not null)
-            {
-                Dispatcher.Invoke(() => _aboutItem.Header = _updates.AboutMenuHeader);
-            }
-        };
-
-        var settingsItem = new MenuItem { Header = "Settings" };
-        settingsItem.Click += (_, _) => ShowSettings();
-        var exitItem = new MenuItem { Header = "Exit" };
-        exitItem.Click += (_, _) => Shutdown();
-
-        _menu = new ContextMenu();
-        _menu.Items.Add(settingsItem);
-        _menu.Items.Add(_aboutItem);
-        _menu.Items.Add(exitItem);
-    }
-
     private void BuildTray()
     {
         _tray = new TaskbarIcon
         {
             ToolTipText = AppConstants.ProductName,
-            ContextMenu = _menu,
-            Icon = CreateTrayIcon()
+            IconSource = new BitmapImage(new Uri("pack://application:,,,/Assets/tray.ico"))
         };
         _tray.ForceCreate();
         _tray.TrayMouseDoubleClick += (_, _) => ShowAbout();
+        _tray.TrayRightMouseUp += (_, _) => ShowAppMenu();
     }
 
     private void ShowAbout()
     {
-        if (_about is { IsVisible: true })
+        try
         {
-            _about.Activate();
-            return;
-        }
+            if (_about is { IsVisible: true })
+            {
+                _about.Activate();
+                return;
+            }
 
-        _about = new AboutWindow(new AboutViewModel(_updates));
-        _about.Closed += (_, _) => _about = null;
-        _about.Show();
-        _ = _updates.CheckFromAboutAsync();
+            _about = new AboutWindow(new AboutViewModel(_updates));
+            _about.Closed += (_, _) => _about = null;
+            _about.Show();
+            _about.Activate();
+            _ = _updates.CheckFromAboutAsync();
+        }
+        catch (Exception ex)
+        {
+            CrashLog.Write("ShowAbout", ex);
+        }
     }
 
-    private void ShowSettings()
+    public void ShowSettings(bool highlightPawnIo = false)
     {
-        if (_settingsWindow is { IsVisible: true })
+        try
         {
-            _settingsWindow.Activate();
-            return;
-        }
+            if (_settingsWindow is { IsVisible: true })
+            {
+                _settingsWindow.Activate();
+                if (highlightPawnIo)
+                {
+                    _settingsWindow.HighlightPawnIo();
+                }
 
-        var vm = new SettingsViewModel(_settings, _store, _autostart, _updates, _pipeline, ApplySettings);
-        _settingsWindow = new SettingsWindow(vm);
-        _settingsWindow.Closed += (_, _) => _settingsWindow = null;
-        _settingsWindow.Show();
+                return;
+            }
+
+            var vm = new SettingsViewModel(_settings, _store, _autostart, _updates, _pipeline, ApplySettings);
+            _settingsWindow = new SettingsWindow(vm);
+            _settingsWindow.Closed += (_, _) => _settingsWindow = null;
+            _settingsWindow.Show();
+            _settingsWindow.Activate();
+            if (highlightPawnIo)
+            {
+                Dispatcher.BeginInvoke(
+                    () => _settingsWindow?.HighlightPawnIo(),
+                    DispatcherPriority.ApplicationIdle);
+            }
+        }
+        catch (Exception ex)
+        {
+            CrashLog.Write("ShowSettings", ex);
+        }
     }
 
     private void ApplySettings(AppSettings settings)
@@ -183,58 +252,10 @@ public partial class App : Application
         _settings = settings;
         _viewModel.ApplySettings(settings);
         _pipeline.ApplySettings(settings);
+        _viewModel.ShowPawnIoWarning = !_pawnIo.IsInstalled();
         if (settings.AutoUpdate && _updates.Status == UpdateStatusKind.Available)
         {
             _ = _updates.InstallAsync();
         }
-    }
-
-    private async Task MaybePromptPawnIoAsync()
-    {
-        if (_pawnIo.IsInstalled() || _settings.PawnIoSkipped)
-        {
-            return;
-        }
-
-        var result = MessageBox.Show(
-            "CPU temperature needs PawnIO, the official hardware driver. Install it now? Other metrics keep working if you skip.",
-            AppConstants.ProductName,
-            MessageBoxButton.YesNo,
-            MessageBoxImage.Question);
-
-        if (result != MessageBoxResult.Yes)
-        {
-            _settings.PawnIoSkipped = true;
-            _store.Save(_settings);
-            return;
-        }
-
-        try
-        {
-            await _pawnIo.InstallAsync();
-        }
-        catch
-        {
-            MessageBox.Show(
-                "Couldn't download PawnIO. CPU temperature will stay -- until it is installed.",
-                AppConstants.ProductName,
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
-        }
-    }
-
-    private static DrawingIcon CreateTrayIcon()
-    {
-        var bitmap = new Bitmap(32, 32);
-        using var graphics = Graphics.FromImage(bitmap);
-        graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-        graphics.Clear(Color.Transparent);
-        using var fill = new SolidBrush(Color.FromArgb(255, 196, 165, 116));
-        graphics.FillEllipse(fill, 2, 2, 28, 28);
-        using var pen = new Pen(Color.FromArgb(255, 18, 20, 23), 3);
-        graphics.DrawArc(pen, 9, 8, 14, 14, 200, 220);
-        graphics.DrawLine(pen, 16, 15, 16, 22);
-        var handle = bitmap.GetHicon();
-        return DrawingIcon.FromHandle(handle);
     }
 }

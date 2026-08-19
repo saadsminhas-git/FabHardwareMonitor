@@ -1,73 +1,252 @@
-<Window x:Class="FabHardwareMonitor.Views.SettingsWindow"
-        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Settings"
-        Width="420"
-        SizeToContent="Height"
-        WindowStartupLocation="CenterScreen"
-        ResizeMode="NoResize"
-        Background="#FF121417"
-        Foreground="#FFF4F1EA"
-        FontFamily="Bahnschrift"
-        FontSize="13"
-        SnapsToDevicePixels="True">
-    <Window.Resources>
-        <BooleanToVisibilityConverter x:Key="BoolVis" />
-        <Style TargetType="ComboBox">
-            <Setter Property="Margin" Value="0,4,0,14" />
-            <Setter Property="Padding" Value="8,6" />
-        </Style>
-        <Style TargetType="CheckBox">
-            <Setter Property="Foreground" Value="#FFF4F1EA" />
-            <Setter Property="Margin" Value="0,0,0,10" />
-        </Style>
-        <Style TargetType="TextBlock">
-            <Setter Property="Foreground" Value="#FFC8C4BB" />
-        </Style>
-        <Style TargetType="Button">
-            <Setter Property="Background" Value="#FFC4A574" />
-            <Setter Property="Foreground" Value="#FF121417" />
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="Padding" Value="18,8" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}" CornerRadius="2">
-                            <ContentPresenter HorizontalAlignment="Center" />
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-    </Window.Resources>
-    <Border BorderBrush="#33C4A574" BorderThickness="0,3,0,0" Padding="24">
-        <StackPanel>
-            <TextBlock Text="Hardware" FontSize="16" Foreground="#FFF4F1EA" Margin="0,0,0,12" />
-            <TextBlock Text="Refresh interval" />
-            <ComboBox ItemsSource="{Binding RefreshIntervals}" SelectedItem="{Binding SelectedInterval}" DisplayMemberPath="Name" />
-            <TextBlock Text="Network adapter" />
-            <ComboBox ItemsSource="{Binding Nics}" SelectedItem="{Binding SelectedNic}" DisplayMemberPath="Name" />
-            <TextBlock Text="GPU" />
-            <ComboBox ItemsSource="{Binding Gpus}" SelectedItem="{Binding SelectedGpu}" DisplayMemberPath="Name" />
-            <TextBlock Text="CPU temperature sensor" />
-            <ComboBox ItemsSource="{Binding CpuSensors}" SelectedItem="{Binding SelectedSensor}" DisplayMemberPath="Name" />
-            <TextBlock Text="Text color" />
-            <ComboBox ItemsSource="{Binding TextColors}" SelectedItem="{Binding SelectedTextColor}" DisplayMemberPath="Name" />
-            <CheckBox Content="Show VRAM" IsChecked="{Binding ShowVram}" />
+<views:FabWindow x:Class="FabHardwareMonitor.Views.SettingsWindow"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:views="clr-namespace:FabHardwareMonitor.Views"
+                 Style="{StaticResource FabWindow}"
+                 Title="Settings"
+                 Width="520"
+                 SizeToContent="Height"
+                 WindowStartupLocation="CenterScreen">
 
-            <TextBlock Text="App" FontSize="16" Foreground="#FFF4F1EA" Margin="0,10,0,12" />
-            <CheckBox Content="Start with Windows" IsChecked="{Binding StartWithWindows}" />
-            <CheckBox Content="Automatically install updates" IsChecked="{Binding AutoUpdate}" />
+    <StackPanel Margin="28,24,28,0">
 
-            <Button Content="Install PawnIO driver"
-                    Command="{Binding InstallPawnIoCommand}"
-                    Visibility="{Binding ShowPawnIoInstall, Converter={StaticResource BoolVis}}"
-                    HorizontalAlignment="Left"
-                    Margin="0,4,0,8" />
-            <TextBlock Text="{Binding PawnIoStatus}" TextWrapping="Wrap" Margin="0,0,0,12" Foreground="#FFC4A574" />
+        <!-- 01 Readout -->
+        <Grid Margin="0,0,0,9">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0"
+                       Text="01"
+                       Style="{StaticResource EyebrowText}"
+                       Foreground="{DynamicResource AccentBrush}" />
+            <TextBlock Grid.Column="1"
+                       Margin="10,0,0,0"
+                       Text="READOUT"
+                       Style="{StaticResource EyebrowText}"
+                       FontWeight="SemiBold" />
+        </Grid>
+        <Border Style="{StaticResource Rule}" Margin="0,0,0,18" />
 
-            <Button Content="Save" Command="{Binding SaveCommand}" HorizontalAlignment="Right" Click="OnSave" />
-        </StackPanel>
-    </Border>
-</Window>
+        <Grid Style="{StaticResource FormRow}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="248" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0" Style="{StaticResource FormRowLabel}">
+                <TextBlock Text="Refresh interval" Style="{StaticResource RowLabelText}" />
+            </StackPanel>
+            <ComboBox Grid.Column="1"
+                      Style="{StaticResource FabComboBox}"
+                      AutomationProperties.Name="Refresh interval"
+                      ItemsSource="{Binding RefreshIntervals}"
+                      SelectedItem="{Binding SelectedInterval}"
+                      DisplayMemberPath="Name" />
+        </Grid>
+
+        <Grid Style="{StaticResource FormRow}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="248" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0" Style="{StaticResource FormRowLabel}">
+                <TextBlock Text="Network adapter" Style="{StaticResource RowLabelText}" />
+            </StackPanel>
+            <ComboBox Grid.Column="1"
+                      Style="{StaticResource FabComboBox}"
+                      AutomationProperties.Name="Network adapter"
+                      ToolTip="{Binding SelectedNic.Name}"
+                      ItemsSource="{Binding Nics}"
+                      SelectedItem="{Binding SelectedNic}"
+                      DisplayMemberPath="Name" />
+        </Grid>
+
+        <Grid Style="{StaticResource FormRow}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="248" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0" Style="{StaticResource FormRowLabel}">
+                <TextBlock Text="Graphics card" Style="{StaticResource RowLabelText}" />
+            </StackPanel>
+            <ComboBox Grid.Column="1"
+                      Style="{StaticResource FabComboBox}"
+                      AutomationProperties.Name="Graphics card"
+                      ToolTip="{Binding SelectedGpu.Name}"
+                      ItemsSource="{Binding Gpus}"
+                      SelectedItem="{Binding SelectedGpu}"
+                      DisplayMemberPath="Name" />
+        </Grid>
+
+        <Grid Style="{StaticResource FormRow}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="248" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0" Style="{StaticResource FormRowLabel}">
+                <TextBlock Text="CPU temperature sensor" Style="{StaticResource RowLabelText}" />
+            </StackPanel>
+            <ComboBox Grid.Column="1"
+                      Style="{StaticResource FabComboBox}"
+                      AutomationProperties.Name="CPU temperature sensor"
+                      ToolTip="{Binding SelectedSensor.Name}"
+                      ItemsSource="{Binding CpuSensors}"
+                      SelectedItem="{Binding SelectedSensor}"
+                      DisplayMemberPath="Name" />
+        </Grid>
+
+        <Grid Style="{StaticResource FormRow}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="248" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0" Style="{StaticResource FormRowLabel}">
+                <TextBlock Text="Text colour" Style="{StaticResource RowLabelText}" />
+                <TextBlock Text="Idle readout colour on a dark taskbar. Light taskbars use dark ink"
+                           Style="{StaticResource HintText}"
+                           Margin="0,2,0,0" />
+            </StackPanel>
+            <ComboBox Grid.Column="1"
+                      Style="{StaticResource FabComboBox}"
+                      AutomationProperties.Name="Text colour"
+                      ItemsSource="{Binding TextColors}"
+                      SelectedItem="{Binding SelectedTextColor}"
+                      DisplayMemberPath="Name" />
+        </Grid>
+
+        <!-- 02 Application -->
+        <Grid Margin="0,12,0,9">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0"
+                       Text="02"
+                       Style="{StaticResource EyebrowText}"
+                       Foreground="{DynamicResource AccentBrush}" />
+            <TextBlock Grid.Column="1"
+                       Margin="10,0,0,0"
+                       Text="APPLICATION"
+                       Style="{StaticResource EyebrowText}"
+                       FontWeight="SemiBold" />
+        </Grid>
+        <Border Style="{StaticResource Rule}" Margin="0,0,0,18" />
+
+        <Grid Style="{StaticResource FormRow}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="248" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0" Style="{StaticResource FormRowLabel}">
+                <TextBlock Text="Start with Windows" Style="{StaticResource RowLabelText}" />
+                <TextBlock Text="Runs at sign-in through a scheduled task"
+                           Style="{StaticResource HintText}"
+                           Margin="0,2,0,0" />
+            </StackPanel>
+            <CheckBox Grid.Column="1"
+                      Style="{StaticResource FabToggle}"
+                      AutomationProperties.Name="Start with Windows"
+                      IsChecked="{Binding StartWithWindows}" />
+        </Grid>
+
+        <Grid Style="{StaticResource FormRow}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="248" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0" Style="{StaticResource FormRowLabel}">
+                <TextBlock Text="Install updates automatically" Style="{StaticResource RowLabelText}" />
+                <TextBlock Text="Turn this off and the About window will offer them instead"
+                           Style="{StaticResource HintText}"
+                           Margin="0,2,0,0" />
+            </StackPanel>
+            <CheckBox Grid.Column="1"
+                      Style="{StaticResource FabToggle}"
+                      AutomationProperties.Name="Install updates automatically"
+                      IsChecked="{Binding AutoUpdate}" />
+        </Grid>
+
+        <!-- 03 Driver -->
+        <Grid>
+            <StackPanel>
+                <Grid Margin="0,12,0,9">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0"
+                               Text="03"
+                               Style="{StaticResource EyebrowText}"
+                               Foreground="{DynamicResource AccentBrush}" />
+                    <TextBlock Grid.Column="1"
+                               Margin="10,0,0,0"
+                               Text="DRIVER"
+                               Style="{StaticResource EyebrowText}"
+                               FontWeight="SemiBold" />
+                </Grid>
+                <Border Style="{StaticResource Rule}" Margin="0,0,0,18" />
+
+                <Grid Style="{StaticResource FormRow}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="248" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Style="{StaticResource FormRowLabel}">
+                        <TextBlock Text="PawnIO" Style="{StaticResource RowLabelText}" />
+                        <TextBlock Text="Required for CPU temperature readings. Without it CPU temperature shows as --."
+                                   Style="{StaticResource HintText}"
+                                   Margin="0,2,0,0" />
+                    </StackPanel>
+                    <Button Grid.Column="1"
+                            Style="{StaticResource GhostButton}"
+                            Content="Install driver"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Center"
+                            Command="{Binding InstallPawnIoCommand}"
+                            Visibility="{Binding ShowPawnIoInstall, Converter={StaticResource BoolVis}}" />
+                    <TextBlock Grid.Column="1"
+                               Text="Installed"
+                               Style="{StaticResource MonoValueText}"
+                               HorizontalAlignment="Right"
+                               VerticalAlignment="Center"
+                               Visibility="{Binding ShowPawnIoInstall, Converter={StaticResource NotBoolVis}}" />
+                </Grid>
+
+                <Border Background="{DynamicResource SurfaceBrush}"
+                        BorderBrush="{DynamicResource AccentBrush}"
+                        BorderThickness="2,0,0,0"
+                        Padding="14,10"
+                        Margin="0,0,0,14"
+                        Visibility="{Binding PawnIoStatus, Converter={StaticResource TextVis}}">
+                    <TextBlock Text="{Binding PawnIoStatus}"
+                               Style="{StaticResource HintText}"
+                               Foreground="{DynamicResource TextBrush}" />
+                </Border>
+            </StackPanel>
+            <Border x:Name="PawnIoHighlight"
+                    BorderBrush="#E61C1C"
+                    BorderThickness="2"
+                    CornerRadius="4"
+                    IsHitTestVisible="False"
+                    Opacity="0"
+                    SnapsToDevicePixels="True" />
+        </Grid>
+
+        <!-- Actions -->
+        <Border Style="{StaticResource Rule}" Margin="0,10,0,0" />
+        <Grid Margin="0,16,0,20">
+            <TextBlock Text="Changes apply when you save"
+                       Style="{StaticResource HintText}"
+                       VerticalAlignment="Center"
+                       HorizontalAlignment="Left" />
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="Cancel" Style="{StaticResource GhostButton}" Click="OnCancel" />
+                <Button Content="Save"
+                        Style="{StaticResource PrimaryButton}"
+                        Margin="10,0,0,0"
+                        Command="{Binding SaveCommand}"
+                        Click="OnSave" />
+            </StackPanel>
+        </Grid>
+    </StackPanel>
+</views:FabWindow>

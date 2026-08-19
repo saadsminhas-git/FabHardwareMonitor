@@ -1,12 +1,9 @@
-using System.Diagnostics;
 using System.Windows;
-using System.Windows.Input;
-using System.Windows.Navigation;
 using FabHardwareMonitor.ViewModels;
 
 namespace FabHardwareMonitor.Views;
 
-public partial class AboutWindow : Window
+public partial class AboutWindow : FabWindow
 {
     public AboutWindow(AboutViewModel viewModel)
     {
@@ -14,17 +11,12 @@ public partial class AboutWindow : Window
         DataContext = viewModel;
     }
 
-    private void OnLogoClick(object sender, MouseButtonEventArgs e) =>
-        Open(AppConstants.WebsiteUrl);
-
-    private void OnLink(object sender, RequestNavigateEventArgs e)
+    private void OnPrivacy(object sender, RoutedEventArgs e)
     {
-        Open(e.Uri.ToString());
-        e.Handled = true;
-    }
-
-    private static void Open(string url)
-    {
-        Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        var window = new ConsentWindow
+        {
+            Owner = this
+        };
+        window.ShowDialog();
     }
 }

@@ -49,12 +49,11 @@ public sealed partial class SettingsViewModel : ObservableObject
 
         SelectedInterval = RefreshIntervals.FirstOrDefault(i => i.Id == settings.RefreshIntervalMs.ToString())
                            ?? RefreshIntervals[1];
-        SelectedNic = Nics.FirstOrDefault(n => n.Id == (settings.NicId ?? "")) ?? Nics[0];
-        SelectedGpu = Gpus.FirstOrDefault(g => g.Id == (settings.GpuId ?? "")) ?? Gpus[0];
-        SelectedSensor = CpuSensors.FirstOrDefault(s => s.Id == (settings.CpuTempSensor ?? "")) ?? CpuSensors[0];
+        SelectedNic = Nics.FirstOrDefault(n => n.Id == (settings.NicId ?? "")) ?? Nics.FirstOrDefault();
+        SelectedGpu = Gpus.FirstOrDefault(g => g.Id == (settings.GpuId ?? "")) ?? Gpus.FirstOrDefault();
+        SelectedSensor = CpuSensors.FirstOrDefault(s => s.Id == (settings.CpuTempSensor ?? "")) ?? CpuSensors.FirstOrDefault();
         SelectedTextColor = TextColors.FirstOrDefault(c => c.Id.Equals(settings.TextColor, StringComparison.OrdinalIgnoreCase))
                             ?? TextColors[0];
-        ShowVram = settings.ShowVram;
         StartWithWindows = settings.StartWithWindows;
         AutoUpdate = settings.AutoUpdate;
         ShowPawnIoInstall = !new PawnIoGuard().IsInstalled();
@@ -71,7 +70,6 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private NamedOption? _selectedGpu;
     [ObservableProperty] private NamedOption? _selectedSensor;
     [ObservableProperty] private NamedOption? _selectedTextColor;
-    [ObservableProperty] private bool _showVram;
     [ObservableProperty] private bool _startWithWindows;
     [ObservableProperty] private bool _autoUpdate;
     [ObservableProperty] private bool _showPawnIoInstall;
@@ -85,7 +83,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         _settings.GpuId = string.IsNullOrWhiteSpace(SelectedGpu?.Id) ? null : SelectedGpu!.Id;
         _settings.CpuTempSensor = string.IsNullOrWhiteSpace(SelectedSensor?.Id) ? null : SelectedSensor!.Id;
         _settings.TextColor = SelectedTextColor?.Id ?? "#FFFFFFFF";
-        _settings.ShowVram = ShowVram;
+        _settings.ShowVram = true;
         _settings.StartWithWindows = StartWithWindows;
         var autoWas = _settings.AutoUpdate;
         _settings.AutoUpdate = AutoUpdate;
@@ -103,7 +101,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     [RelayCommand]
     private async Task InstallPawnIoAsync()
     {
-        PawnIoStatus = "Downloading PawnIO…";
+        PawnIoStatus = "Starting PawnIO installer…";
         try
         {
             var ok = await new PawnIoGuard().InstallAsync();

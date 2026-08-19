@@ -1,0 +1,1 @@
+This wizard installs Fab Hardware Monitor.
