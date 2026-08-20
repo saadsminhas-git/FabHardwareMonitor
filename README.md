@@ -6,10 +6,7 @@ Inspired by [Traffic Monitor](https://github.com/zhongyang219/TrafficMonitor) by
 
 ## Layout
 
-```
-↑  0.0 K/s     CPU  12%     GPU   0%     CPU  45°C
-↓  0.0 K/s     MEM  60%     VRAM  8%     GPU  50°C
-```
+![Fab Hardware Monitor on the Windows 11 taskbar](docs/taskbar-widget.png)
 
 Right-click the widget or tray icon: **Settings**, **About**, **Exit**.
 
