@@ -1,6 +1,6 @@
 <Project>
   <PropertyGroup>
-    <Version>1.0.3</Version>
+    <Version>1.0.4</Version>
     <Company>Fabric Visuals</Company>
     <Authors>Saad Minhas</Authors>
     <Product>Fab Hardware Monitor</Product>

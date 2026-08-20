@@ -12,6 +12,7 @@ namespace FabHardwareMonitor.Views;
 public partial class TaskbarWidget : Window
 {
     private HwndSource? _source;
+    private IntPtr _taskbarParent;
     private int _lastPaintWidth;
     private int _lastPaintHeight;
     private bool _presentQueued;
@@ -21,6 +22,10 @@ public partial class TaskbarWidget : Window
     public TaskbarWidget()
     {
         InitializeComponent();
+        ShowActivated = false;
+        WindowStartupLocation = WindowStartupLocation.Manual;
+        Left = -32000;
+        Top = -32000;
         TaskbarContentHost = new TaskbarContentHost(this, (FrameworkElement)Content, new TaskbarContentHostOptions
         {
             PreferredWidth = 336,
@@ -30,20 +35,25 @@ public partial class TaskbarWidget : Window
         });
     }
 
-    public Task PrepareTaskbarContentAsync() => TaskbarContentHost.AttachWhenLayoutReadyAsync();
-
-    public async Task PresentAsync()
+    public async Task AttachAndShowAsync()
     {
         Show();
         await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Loaded);
+        await TaskbarContentHost.AttachWhenLayoutReadyAsync();
+        RememberTaskbarParent();
+        ApplyTaskbarHostStyles();
+        Native.ShowWindow(Handle, Native.SW_SHOWNOACTIVATE);
         Present();
         for (var i = 0; i < 40 && !HasClientArea(); i++)
         {
             await Task.Delay(50);
+            ApplyTaskbarHostStyles();
         }
 
         Present();
     }
+
+    private IntPtr Handle => _source?.Handle ?? new WindowInteropHelper(this).Handle;
 
     private void OnPawnIoWarningClick(object sender, RoutedEventArgs e)
     {
@@ -60,6 +70,7 @@ public partial class TaskbarWidget : Window
             target.RenderMode = RenderMode.SoftwareOnly;
         }
 
+        ApplyTaskbarHostStyles();
         _source?.AddHook(OnMessage);
     }
 
@@ -72,9 +83,22 @@ public partial class TaskbarWidget : Window
     {
         switch (msg)
         {
+            case Native.WM_MOUSEACTIVATE:
+                handled = true;
+                return new IntPtr(Native.MA_NOACTIVATE);
+            case Native.WM_ACTIVATE:
+                ApplyTaskbarHostStyles();
+                handled = true;
+                break;
             case Native.WM_SIZE:
-            case Native.WM_WINDOWPOSCHANGED:
                 QueuePresent();
+                break;
+            case Native.WM_WINDOWPOSCHANGED:
+                if (ClientSizeChanged())
+                {
+                    QueuePresent();
+                }
+
                 break;
             case Native.WM_RBUTTONDOWN:
             case Native.WM_NCRBUTTONDOWN:
@@ -91,6 +115,50 @@ public partial class TaskbarWidget : Window
         }
 
         return IntPtr.Zero;
+    }
+
+    private void RememberTaskbarParent()
+    {
+        var hwnd = Handle;
+        if (hwnd == IntPtr.Zero)
+        {
+            return;
+        }
+
+        var parent = Native.GetParent(hwnd);
+        if (parent != IntPtr.Zero && parent != Native.GetDesktopWindow())
+        {
+            _taskbarParent = parent;
+        }
+    }
+
+    private void ApplyTaskbarHostStyles()
+    {
+        var hwnd = Handle;
+        if (hwnd == IntPtr.Zero)
+        {
+            return;
+        }
+
+        RememberTaskbarParent();
+        if (_taskbarParent != IntPtr.Zero && Native.GetParent(hwnd) != _taskbarParent)
+        {
+            Native.SetParent(hwnd, _taskbarParent);
+        }
+
+        var style = (uint)(Native.GetWindowLongPtr(hwnd, Native.GWL_STYLE).ToInt64() & 0xFFFFFFFF);
+        var hosted = (style | Native.WS_CHILD) & ~Native.WS_POPUP;
+        if (hosted != style)
+        {
+            Native.SetWindowLongPtr(hwnd, Native.GWL_STYLE, unchecked((IntPtr)(long)hosted));
+        }
+
+        var ex = Native.GetWindowLongPtr(hwnd, Native.GWL_EXSTYLE).ToInt64() & 0xFFFFFFFF;
+        var wanted = ex | Native.WS_EX_NOACTIVATE | Native.WS_EX_TOOLWINDOW | Native.WS_EX_LAYERED;
+        if (wanted != ex)
+        {
+            Native.SetWindowLongPtr(hwnd, Native.GWL_EXSTYLE, new IntPtr(wanted));
+        }
     }
 
     private void QueuePresent()
@@ -110,22 +178,32 @@ public partial class TaskbarWidget : Window
 
     private bool HasClientArea()
     {
-        var hwnd = _source?.Handle ?? IntPtr.Zero;
+        var hwnd = Handle;
         return hwnd != IntPtr.Zero
             && Native.GetClientRect(hwnd, out var rect)
             && rect.Width > 1
             && rect.Height > 1;
     }
 
+    private bool ClientSizeChanged()
+    {
+        var hwnd = Handle;
+        if (hwnd == IntPtr.Zero || !Native.GetClientRect(hwnd, out var rect) || rect.Width <= 1 || rect.Height <= 1)
+        {
+            return false;
+        }
+
+        return rect.Width != _lastPaintWidth || rect.Height != _lastPaintHeight;
+    }
+
     private void Present()
     {
-        var hwnd = _source?.Handle ?? IntPtr.Zero;
+        var hwnd = Handle;
         if (hwnd == IntPtr.Zero || !Native.GetClientRect(hwnd, out var rect) || rect.Width <= 1 || rect.Height <= 1)
         {
             return;
         }
 
-        EnsureLayered(hwnd);
         var sizeChanged = rect.Width != _lastPaintWidth || rect.Height != _lastPaintHeight;
         _lastPaintWidth = rect.Width;
         _lastPaintHeight = rect.Height;
@@ -142,17 +220,6 @@ public partial class TaskbarWidget : Window
 
         UpdateLayout();
         Native.RedrawWindow(hwnd, IntPtr.Zero, IntPtr.Zero, Native.RDW_INVALIDATE | Native.RDW_UPDATENOW | Native.RDW_ALLCHILDREN);
-    }
-
-    private static void EnsureLayered(IntPtr hwnd)
-    {
-        var ex = Native.GetWindowLongPtr(hwnd, Native.GWL_EXSTYLE).ToInt64();
-        if ((ex & Native.WS_EX_LAYERED) != 0)
-        {
-            return;
-        }
-
-        Native.SetWindowLongPtr(hwnd, Native.GWL_EXSTYLE, new IntPtr(ex | Native.WS_EX_LAYERED));
     }
 
     protected override void OnPreviewMouseRightButtonDown(MouseButtonEventArgs e)

@@ -5,6 +5,8 @@ namespace FabHardwareMonitor.Interop;
 internal static class Native
 {
     public const int WM_SIZE = 0x0005;
+    public const int WM_ACTIVATE = 0x0006;
+    public const int WM_MOUSEACTIVATE = 0x0021;
     public const int WM_WINDOWPOSCHANGED = 0x0047;
     public const int WM_CONTEXTMENU = 0x007B;
     public const int WM_RBUTTONDOWN = 0x0204;
@@ -13,8 +15,15 @@ internal static class Native
     public const int WM_NCRBUTTONDOWN = 0x00A4;
     public const int WM_NCRBUTTONUP = 0x00A5;
     public const int WM_NCRBUTTONDBLCLK = 0x00A6;
+    public const int GWL_STYLE = -16;
     public const int GWL_EXSTYLE = -20;
+    public const int MA_NOACTIVATE = 3;
+    public const int SW_SHOWNOACTIVATE = 4;
+    public const uint WS_CHILD = 0x40000000;
+    public const uint WS_POPUP = 0x80000000;
     public const int WS_EX_LAYERED = 0x00080000;
+    public const int WS_EX_NOACTIVATE = 0x08000000;
+    public const int WS_EX_TOOLWINDOW = 0x00000080;
     public const uint RDW_INVALIDATE = 0x0001;
     public const uint RDW_UPDATENOW = 0x0100;
     public const uint RDW_ALLCHILDREN = 0x0080;
@@ -65,4 +74,20 @@ internal static class Native
 
     [DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW")]
     public static extern IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    public static extern IntPtr FindWindow(string lpClassName, string? lpWindowName);
+
+    [DllImport("user32.dll")]
+    public static extern IntPtr GetParent(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    public static extern IntPtr SetParent(IntPtr hWndChild, IntPtr hWndNewParent);
+
+    [DllImport("user32.dll")]
+    public static extern IntPtr GetDesktopWindow();
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 }

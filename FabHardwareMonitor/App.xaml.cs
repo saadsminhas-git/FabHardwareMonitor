@@ -162,8 +162,7 @@ public partial class App : Application
         var widget = new TaskbarWidget { DataContext = _viewModel };
         _widget = widget;
         widget.TaskbarContentHost.TaskbarWindowRecreationRequired += OnRecreationRequired;
-        await widget.PrepareTaskbarContentAsync();
-        await widget.PresentAsync();
+        await widget.AttachAndShowAsync();
     }
 
     private async void OnRecreationRequired(object? sender, EventArgs e)

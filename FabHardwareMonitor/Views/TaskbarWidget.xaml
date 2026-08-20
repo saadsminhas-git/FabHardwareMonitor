@@ -9,6 +9,8 @@
         Background="#01000000"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
+        ShowActivated="False"
+        WindowStartupLocation="Manual"
         SnapsToDevicePixels="True"
         UseLayoutRounding="True"
         TextOptions.TextFormattingMode="Display">
