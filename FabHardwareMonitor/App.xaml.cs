@@ -36,6 +36,7 @@ public partial class App : Application
         base.OnStartup(e);
 
         CrashLog.Attach(this);
+        RenderOptions.ProcessRenderMode = RenderMode.SoftwareOnly;
         _mutex = new Mutex(true, AppConstants.MutexName, out var created);
         if (!created)
         {
@@ -139,6 +140,15 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        try
+        {
+            _widget?.Close();
+        }
+        catch
+        {
+            // Explorer may already have destroyed the HWND.
+        }
+
         ThemeService.Stop();
         _pipeline?.Dispose();
         _tray?.Dispose();
@@ -153,7 +163,7 @@ public partial class App : Application
         _widget = widget;
         widget.TaskbarContentHost.TaskbarWindowRecreationRequired += OnRecreationRequired;
         await widget.PrepareTaskbarContentAsync();
-        widget.Show();
+        await widget.PresentAsync();
     }
 
     private async void OnRecreationRequired(object? sender, EventArgs e)
