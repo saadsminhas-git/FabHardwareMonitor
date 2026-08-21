@@ -13,7 +13,7 @@ Right-click the widget or tray icon: **Settings**, **About**, **Exit**.
 ## Requirements
 
 - Windows 11
-- One UAC prompt on first launch (needed for logon autostart, and for PawnIO if you install the driver for CPU temperature)
+- A UAC prompt only if you install PawnIO for CPU temperature
 - [.NET 10 SDK](https://dotnet.microsoft.com/download) to build
 
 CPU temperature uses [LibreHardwareMonitorLib](https://www.nuget.org/packages/LibreHardwareMonitorLib) and the official [PawnIO](https://pawnio.eu) driver. The MSI offers to install PawnIO during setup. You can skip it and install later from Settings; CPU temperature shows as `--` until then. WinRing0 is not shipped.
@@ -24,7 +24,7 @@ CPU temperature uses [LibreHardwareMonitorLib](https://www.nuget.org/packages/Li
 dotnet publish FabHardwareMonitor/FabHardwareMonitor.csproj -c Release -r win-x64 --self-contained true
 ```
 
-Run `FabHardwareMonitor.exe` elevated to embed the widget left of the notification area.
+Run `FabHardwareMonitor.exe` to embed the widget left of the notification area.
 
 ## Release
 

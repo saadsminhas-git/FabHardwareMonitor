@@ -11,11 +11,6 @@ public static class Program
             .OnBeforeUninstallFastCallback(_ => Services.InstallCleanup.Run())
             .Run();
 
-        if (Elevation.RelaunchElevated())
-        {
-            return;
-        }
-
         var application = new App();
         application.InitializeComponent();
         application.Run();

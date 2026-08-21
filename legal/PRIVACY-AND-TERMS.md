@@ -27,7 +27,7 @@ OPTIONAL KERNEL DRIVER
 CPU temperature on many PCs needs PawnIO, a third-party kernel driver. Installing it is optional (this wizard or Settings later). Other metrics keep working if you skip it. Kernel drivers run with high privilege. If you install PawnIO, that installer’s terms apply to the driver.
 
 AUTOSTART
-The app can register a Windows Task Scheduler task so it starts when you sign in. That is on by default. You can turn it off in Settings, or uninstall the app.
+The app can register a Windows Task Scheduler sign-in task so it starts when you sign in. If Task Scheduler is blocked, it falls back to a per-user Run key. That is on by default. You can turn it off in Settings, or uninstall the app.
 
 YOUR CHOICES
 You can refuse this document and not use the app. You can uninstall at any time. Uninstall removes the app, shortcuts, the logon task, local settings, and crash logs. It does not remove PawnIO if you installed that driver.

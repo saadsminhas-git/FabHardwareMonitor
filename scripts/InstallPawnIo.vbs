@@ -121,6 +121,7 @@ Function UninstallCleanup()
   sh.Run "taskkill /F /IM ""Fab Hardware Monitor.exe""", 0, True
   sh.Run "schtasks.exe /Delete /F /TN FabHardwareMonitor", 0, True
   DeleteIfExists fso, sh.ExpandEnvironmentStrings("%SystemRoot%\System32\Tasks\FabHardwareMonitor")
+  DeleteRunValues sh
 
   DeleteTempJunk fso, sh.ExpandEnvironmentStrings("%TEMP%")
   DeleteTempJunk fso, sh.ExpandEnvironmentStrings("%SystemRoot%\Temp")
@@ -144,6 +145,20 @@ Function UninstallCleanup()
 
   UninstallCleanup = 0
 End Function
+
+Sub DeleteRunValues(sh)
+  On Error Resume Next
+  Dim reg, sids, sid
+  sh.RegDelete "HKCU\Software\Microsoft\Windows\CurrentVersion\Run\FabHardwareMonitor"
+  Set reg = GetObject("winmgmts:\\.\root\default:StdRegProv")
+  If reg Is Nothing Then Exit Sub
+  reg.EnumKey &H80000003, "", sids
+  If IsArray(sids) Then
+    For Each sid In sids
+      reg.DeleteValue &H80000003, sid & "\Software\Microsoft\Windows\CurrentVersion\Run", "FabHardwareMonitor"
+    Next
+  End If
+End Sub
 
 Sub DeleteTempJunk(fso, folder)
   On Error Resume Next
