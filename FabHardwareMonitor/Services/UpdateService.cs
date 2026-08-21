@@ -18,8 +18,10 @@ public enum UpdateStatusKind
 
 public sealed partial class UpdateService : ObservableObject
 {
+    private static readonly TimeSpan DownloadTimeout = TimeSpan.FromMinutes(5);
     private readonly Func<bool> _autoUpdate;
     private readonly GithubSource _source = new(AppConstants.RepoUrl, accessToken: null, prerelease: false);
+    private readonly SemaphoreSlim _gate = new(1, 1);
     private UpdateManager? _manager;
     private UpdateInfo? _pending;
     private CancellationTokenSource? _applyCts;
@@ -39,27 +41,28 @@ public sealed partial class UpdateService : ObservableObject
 
     public async Task CheckOnLaunchAsync()
     {
-        await CheckAsync(installIfAuto: true);
+        await CheckAsync(applyIfFound: _autoUpdate());
     }
 
     public async Task CheckFromAboutAsync()
     {
-        await CheckAsync(installIfAuto: false);
+        if (Status is UpdateStatusKind.Downloading or UpdateStatusKind.Restarting)
+        {
+            ApplyPresentation();
+            return;
+        }
+
+        await CheckAsync(applyIfFound: _autoUpdate());
     }
 
     public async Task InstallAsync()
     {
-        if (_pending is null)
-        {
-            await CheckAsync(installIfAuto: false);
-        }
-
-        if (_pending is null)
+        if (Status is UpdateStatusKind.Downloading or UpdateStatusKind.Restarting)
         {
             return;
         }
 
-        await DownloadAndApplyAsync(_pending);
+        await CheckAsync(applyIfFound: true);
     }
 
     public void CancelPendingApply()
@@ -72,13 +75,18 @@ public sealed partial class UpdateService : ObservableObject
         ApplyPresentation();
     }
 
-    private async Task CheckAsync(bool installIfAuto)
+    private async Task CheckAsync(bool applyIfFound)
     {
-        Status = UpdateStatusKind.Checking;
-        ApplyPresentation();
+        if (!await _gate.WaitAsync(0))
+        {
+            return;
+        }
 
         try
         {
+            Status = UpdateStatusKind.Checking;
+            ApplyPresentation();
+
             _manager ??= new UpdateManager(_source);
             if (!_manager.IsInstalled)
             {
@@ -102,7 +110,7 @@ public sealed partial class UpdateService : ObservableObject
             Status = UpdateStatusKind.Available;
             ApplyPresentation();
 
-            if (installIfAuto && _autoUpdate())
+            if (applyIfFound)
             {
                 await DownloadAndApplyAsync(update);
             }
@@ -113,26 +121,38 @@ public sealed partial class UpdateService : ObservableObject
             Status = UpdateStatusKind.Failed;
             ApplyPresentation();
         }
+        finally
+        {
+            _gate.Release();
+        }
     }
 
     private async Task DownloadAndApplyAsync(UpdateInfo update)
     {
         _applyCts?.Cancel();
         _applyCts = new CancellationTokenSource();
-        var token = _applyCts.Token;
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(_applyCts.Token);
+        timeout.CancelAfter(DownloadTimeout);
+        var token = timeout.Token;
 
         try
         {
             Status = UpdateStatusKind.Downloading;
             ApplyPresentation();
             _manager ??= new UpdateManager(_source);
-            await _manager.DownloadUpdatesAsync(update, cancelToken: token);
+            await _manager.DownloadUpdatesAsync(update, percent =>
+            {
+                var version = AvailableVersion;
+                Message = string.IsNullOrEmpty(version)
+                    ? $"Downloading update… {percent}%"
+                    : $"Downloading version {version}… {percent}%";
+            }, token);
             token.ThrowIfCancellationRequested();
             Status = UpdateStatusKind.Restarting;
             ApplyPresentation();
             _manager.ApplyUpdatesAndRestart(update);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (_applyCts?.IsCancellationRequested == true)
         {
             Status = UpdateStatusKind.Available;
             ApplyPresentation();
@@ -165,11 +185,6 @@ public sealed partial class UpdateService : ObservableObject
                 Message = "You're up to date.";
                 ShowCheckButton = true;
                 break;
-            case UpdateStatusKind.Available when auto:
-                Message = string.IsNullOrEmpty(AvailableVersion)
-                    ? "An update is available."
-                    : $"Downloading version {AvailableVersion}…";
-                break;
             case UpdateStatusKind.Available:
                 Message = string.IsNullOrEmpty(AvailableVersion)
                     ? "An update is available."
@@ -186,7 +201,7 @@ public sealed partial class UpdateService : ObservableObject
                 Message = "Restarting to finish the update…";
                 break;
             case UpdateStatusKind.Failed:
-                Message = "Couldn't check GitHub Releases. The repository must be public and contain a published release.";
+                Message = "Couldn't download the update from GitHub Releases. Try again, or install the latest MSI from the repository.";
                 ShowRetryButton = true;
                 break;
             case UpdateStatusKind.NotInstalled:
