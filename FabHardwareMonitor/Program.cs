@@ -7,7 +7,6 @@ namespace FabHardwareMonitor;
 
 public static class Program
 {
-    public static bool VelopackInitialized { get; private set; }
     public static bool StartedFromLink { get; private set; }
     public static bool ShellRetry { get; private set; }
 
@@ -42,7 +41,6 @@ public static class Program
         VelopackApp.Build()
             .OnBeforeUninstallFastCallback(_ => InstallCleanup.Run())
             .Run();
-        VelopackInitialized = true;
 
         if (HasArg(args, AppConstants.SensorsArgument))
         {

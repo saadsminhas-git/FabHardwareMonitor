@@ -1,7 +1,7 @@
-using System.IO;
 using System.Text;
 using System.Windows;
 using System.Windows.Threading;
+using FabHardwareMonitor.Services;
 
 namespace FabHardwareMonitor;
 
@@ -14,6 +14,7 @@ internal static class CrashLog
 
     public static void Attach(Application app)
     {
+        LogFile.TrimOnce(Path);
         app.DispatcherUnhandledException += (_, e) =>
         {
             Write("Dispatcher", e.Exception);
@@ -35,19 +36,12 @@ internal static class CrashLog
 
     public static void Write(string source, Exception exception)
     {
-        try
-        {
-            Directory.CreateDirectory(System.IO.Path.GetDirectoryName(Path)!);
-            var text = new StringBuilder()
+        LogFile.Append(
+            Path,
+            new StringBuilder()
                 .AppendLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss} [{source}]")
                 .AppendLine(exception.ToString())
                 .AppendLine()
-                .ToString();
-            File.AppendAllText(Path, text);
-        }
-        catch
-        {
-            // Never throw from the logger.
-        }
+                .ToString());
     }
 }

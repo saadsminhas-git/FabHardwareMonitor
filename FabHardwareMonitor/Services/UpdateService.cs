@@ -1,5 +1,7 @@
+using System.Reflection;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Velopack;
+using Velopack.Locators;
 using Velopack.Sources;
 
 namespace FabHardwareMonitor.Services;
@@ -84,18 +86,11 @@ public sealed partial class UpdateService : ObservableObject
 
         try
         {
-            if (!Program.VelopackInitialized)
-            {
-                Status = UpdateStatusKind.NotInstalled;
-                ApplyPresentation();
-                return;
-            }
-
             Status = UpdateStatusKind.Checking;
             ApplyPresentation();
 
-            _manager ??= new UpdateManager(_source);
-            if (!_manager.IsInstalled)
+            _manager ??= CreateManager();
+            if (!_manager.IsInstalled && !HasUpdateExe())
             {
                 Status = UpdateStatusKind.NotInstalled;
                 _pending = null;
@@ -146,7 +141,7 @@ public sealed partial class UpdateService : ObservableObject
         {
             Status = UpdateStatusKind.Downloading;
             ApplyPresentation();
-            _manager ??= new UpdateManager(_source);
+            _manager ??= CreateManager();
             await _manager.DownloadUpdatesAsync(update, percent =>
             {
                 var version = AvailableVersion;
@@ -212,11 +207,58 @@ public sealed partial class UpdateService : ObservableObject
                 ShowRetryButton = true;
                 break;
             case UpdateStatusKind.NotInstalled:
-                Message = "Install the app to enable updates.";
+                Message = "Updates are available after installing with the MSI.";
                 break;
             default:
                 Message = string.Empty;
                 break;
         }
+    }
+
+    private UpdateManager CreateManager()
+    {
+        var locator = EnsureLocator();
+        LaunchLog.Write(
+            $"updates locator app={locator.AppId} ver={locator.CurrentlyInstalledVersion} " +
+            $"exe={locator.UpdateExePath}");
+        return new UpdateManager(_source, null, locator);
+    }
+
+    private static IVelopackLocator EnsureLocator()
+    {
+        if (VelopackLocator.IsCurrentSet)
+        {
+            return VelopackLocator.Current;
+        }
+
+        var locator = new WindowsVelopackLocator(null, null);
+        typeof(VelopackLocator)
+            .GetMethod("SetCurrentLocator", BindingFlags.Static | BindingFlags.NonPublic)
+            ?.Invoke(null, new object[] { locator });
+        return locator;
+    }
+
+    private static bool HasUpdateExe()
+    {
+        var exe = Environment.ProcessPath;
+        if (string.IsNullOrWhiteSpace(exe))
+        {
+            return false;
+        }
+
+        var dir = System.IO.Path.GetDirectoryName(exe);
+        if (string.IsNullOrWhiteSpace(dir))
+        {
+            return false;
+        }
+
+        if (System.IO.File.Exists(System.IO.Path.Combine(dir, "Update.exe")))
+        {
+            return true;
+        }
+
+        var parent = System.IO.Directory.GetParent(dir)?.FullName;
+        return !string.IsNullOrWhiteSpace(parent)
+               && System.IO.File.Exists(System.IO.Path.Combine(parent, "Update.exe"));
     }
 }

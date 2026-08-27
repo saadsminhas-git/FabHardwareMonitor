@@ -1,6 +1,3 @@
-using System.IO;
-using System.Text;
-
 namespace FabHardwareMonitor.Services;
 
 internal static class LaunchLog
@@ -12,19 +9,6 @@ internal static class LaunchLog
 
     public static void Write(string message)
     {
-        try
-        {
-            Directory.CreateDirectory(System.IO.Path.GetDirectoryName(Path)!);
-            var text = new StringBuilder()
-                .Append(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"))
-                .Append(' ')
-                .AppendLine(message)
-                .ToString();
-            File.AppendAllText(Path, text);
-        }
-        catch
-        {
-            // Never throw from the logger.
-        }
+        LogFile.Append(Path, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} {message}{Environment.NewLine}");
     }
 }
