@@ -1,0 +1,19 @@
+<Application x:Class="FabHardwareMonitor.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:FabHardwareMonitor"
+             ShutdownMode="OnExplicitShutdown">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Themes/Palette.Light.xaml" />
+                <ResourceDictionary Source="Themes/Fabric.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <BooleanToVisibilityConverter x:Key="BoolVis" />
+            <local:InverseBooleanToVisibilityConverter x:Key="NotBoolVis" />
+            <local:TextToVisibilityConverter x:Key="TextVis" />
+            <local:TrackingConverter x:Key="Tracked" />
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

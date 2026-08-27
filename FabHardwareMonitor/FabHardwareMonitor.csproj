@@ -1,0 +1,83 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <RootNamespace>FabHardwareMonitor</RootNamespace>
+    <AssemblyName>FabHardwareMonitor</AssemblyName>
+    <StartupObject>FabHardwareMonitor.Program</StartupObject>
+    <Platforms>x64</Platforms>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <PublishSingleFile>false</PublishSingleFile>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <ApplicationTitle>Fab Hardware Monitor</ApplicationTitle>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+    <DebuggerSupport>false</DebuggerSupport>
+    <CopyOutputSymbolsToPublishDirectory>false</CopyOutputSymbolsToPublishDirectory>
+    <ErrorReport>none</ErrorReport>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Remove="System.Drawing" />
+    <Using Remove="System.Windows.Forms" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="Assets\app-icon.png" />
+    <None Remove="Assets\tray.ico" />
+    <None Remove="Assets\fabric-visuals-mark.png" />
+    <Resource Include="Assets\app-icon.png" />
+    <Resource Include="Assets\tray.ico" />
+    <Resource Include="Assets\fabric-visuals-mark.png" />
+    <Resource Include="..\legal\PRIVACY-AND-TERMS.md" Link="Assets\legal\PRIVACY-AND-TERMS.md" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+    <PackageReference Include="Deskband11Lib.Wpf" Version="1.4.2" />
+    <PackageReference Include="H.NotifyIcon.Wpf" Version="2.4.1" />
+    <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.6" />
+    <PackageReference Include="Velopack" Version="1.2.0" />
+  </ItemGroup>
+
+  <Target Name="StripUnusedPublishFiles" AfterTargets="Publish" Condition="'$(Configuration)' == 'Release'">
+    <ItemGroup>
+      <_Strip Include="$(PublishDir)createdump.exe" />
+      <_Strip Include="$(PublishDir)mscordaccore.dll" />
+      <_Strip Include="$(PublishDir)mscordaccore_*.dll" />
+      <_Strip Include="$(PublishDir)mscordbi.dll" />
+      <_Strip Include="$(PublishDir)Microsoft.DiaSymReader.Native*.dll" />
+      <_Strip Include="$(PublishDir)*.pdb" />
+      <_Strip Include="$(PublishDir)Microsoft.Windows.SDK.NET.dll" />
+      <_Strip Include="$(PublishDir)System.Windows.Forms.dll" />
+      <_Strip Include="$(PublishDir)System.Windows.Forms.Design.dll" />
+      <_Strip Include="$(PublishDir)System.Windows.Forms.Design.Editors.dll" />
+      <_Strip Include="$(PublishDir)System.Windows.Forms.Primitives.dll" />
+      <_Strip Include="$(PublishDir)Microsoft.VisualBasic.dll" />
+      <_Strip Include="$(PublishDir)Microsoft.VisualBasic.Core.dll" />
+      <_Strip Include="$(PublishDir)Microsoft.VisualBasic.Forms.dll" />
+      <_Strip Include="$(PublishDir)System.Windows.Controls.Ribbon.dll" />
+      <_Strip Include="$(PublishDir)ReachFramework.dll" />
+      <_Strip Include="$(PublishDir)System.Printing.dll" />
+      <_Strip Include="$(PublishDir)PresentationFramework.Aero.dll" />
+      <_Strip Include="$(PublishDir)PresentationFramework.AeroLite.dll" />
+      <_Strip Include="$(PublishDir)PresentationFramework.Classic.dll" />
+      <_Strip Include="$(PublishDir)PresentationFramework.Fluent.dll" />
+      <_Strip Include="$(PublishDir)PresentationFramework.Luna.dll" />
+      <_Strip Include="$(PublishDir)PresentationFramework.Royale.dll" />
+      <_Strip Include="$(PublishDir)msquic.dll" />
+      <_Strip Include="$(PublishDir)System.Net.Quic.dll" />
+      <_Strip Include="$(PublishDir)clrgcexp.dll" />
+    </ItemGroup>
+    <Delete Files="@(_Strip)" TreatErrorsAsWarnings="true" />
+  </Target>
+</Project>

@@ -1,0 +1,14 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Warm paper, not stark white. Body text is near-black for 4.5:1+. -->
+    <SolidColorBrush x:Key="InkBrush" Color="#FFF6F4F1" />
+    <SolidColorBrush x:Key="SurfaceBrush" Color="#FFFFFFFF" />
+    <SolidColorBrush x:Key="SurfaceAltBrush" Color="#FFEFECE7" />
+    <SolidColorBrush x:Key="LineBrush" Color="#FFE2DED6" />
+    <SolidColorBrush x:Key="LineStrongBrush" Color="#FFC9C3B8" />
+    <SolidColorBrush x:Key="TextBrush" Color="#FF1A1917" />
+    <SolidColorBrush x:Key="TextMutedBrush" Color="#FF5C5852" />
+    <SolidColorBrush x:Key="AccentBrush" Color="#FFE61C1C" />
+    <SolidColorBrush x:Key="AccentHoverBrush" Color="#FFC41616" />
+    <SolidColorBrush x:Key="AccentPressedBrush" Color="#FF9E1212" />
+</ResourceDictionary>

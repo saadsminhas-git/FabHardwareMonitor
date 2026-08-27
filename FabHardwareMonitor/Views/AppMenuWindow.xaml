@@ -1,0 +1,32 @@
+<Window x:Class="FabHardwareMonitor.Views.AppMenuWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Fab Hardware Monitor"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        Topmost="True"
+        SizeToContent="WidthAndHeight"
+        Background="{DynamicResource SurfaceBrush}"
+        SnapsToDevicePixels="True"
+        UseLayoutRounding="True"
+        ShowActivated="True"
+        WindowStartupLocation="Manual">
+    <Border BorderBrush="{DynamicResource LineStrongBrush}" BorderThickness="1">
+        <StackPanel Margin="0,4" MinWidth="176">
+                <Button x:Name="SettingsButton"
+                        Style="{StaticResource FabMenuCommand}"
+                        Content="Settings"
+                        Click="OnSettings" />
+                <Button x:Name="AboutButton"
+                        Style="{StaticResource FabMenuCommand}"
+                        Content="About"
+                        Click="OnAbout" />
+                <Border Height="1" Margin="16,5" Background="{DynamicResource LineBrush}" />
+                <Button x:Name="ExitButton"
+                        Style="{StaticResource FabMenuCommand}"
+                        Content="Exit"
+                        Click="OnExit" />
+            </StackPanel>
+    </Border>
+</Window>

@@ -1,0 +1,371 @@
+using FabHardwareMonitor.Models;
+using LibreHardwareMonitor.Hardware;
+
+namespace FabHardwareMonitor.Services;
+
+public sealed class HardwareSampler : IDisposable
+{
+    private static readonly string[] CpuTempPriority =
+    [
+        "CPU Package",
+        "CPU Core Average",
+        "Core Average",
+        "CPU Core Max",
+        "Core Max",
+        "Core (Tctl/Tdie)",
+        "CPU CCD Average",
+        "CCD Average",
+        "Tctl/Tdie",
+        "Core (Tdie)",
+        "CPU Die",
+        "CPU Cores"
+    ];
+
+    private readonly Computer _computer = new()
+    {
+        IsCpuEnabled = true,
+        IsGpuEnabled = true,
+        IsMemoryEnabled = true,
+        IsMotherboardEnabled = true,
+        IsControllerEnabled = false,
+        IsNetworkEnabled = false,
+        IsStorageEnabled = false,
+        IsPsuEnabled = false
+    };
+
+    private readonly PawnIoGuard _pawnIo = new();
+    private bool _opened;
+    private int _reopenAttempts;
+    private DateTime _nextReopen;
+
+    public void EnsureOpen()
+    {
+        if (_opened)
+        {
+            return;
+        }
+
+        _computer.Open();
+        _opened = true;
+    }
+
+    public bool TryReopen()
+    {
+        if (_reopenAttempts >= 24)
+        {
+            return false;
+        }
+
+        _reopenAttempts++;
+        _pawnIo.TryEnsureDriverRunning();
+        try
+        {
+            if (_opened)
+            {
+                _computer.Close();
+            }
+        }
+        catch
+        {
+            // ignored
+        }
+
+        _opened = false;
+        try
+        {
+            EnsureOpen();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            CrashLog.Write("HardwareOpen", ex);
+            return false;
+        }
+    }
+
+    public IReadOnlyList<NamedOption> ListGpus()
+    {
+        EnsureOpen();
+        UpdateAll();
+        var list = new List<NamedOption> { new() { Id = "", Name = "Auto" } };
+        foreach (var gpu in Gpus())
+        {
+            list.Add(new NamedOption { Id = gpu.Identifier.ToString(), Name = gpu.Name });
+        }
+
+        return list;
+    }
+
+    public IReadOnlyList<NamedOption> ListCpuTempSensors()
+    {
+        EnsureOpen();
+        UpdateAll();
+        var list = new List<NamedOption> { new() { Id = "", Name = "Auto" } };
+        foreach (var sensor in CpuTempSensors())
+        {
+            list.Add(new NamedOption
+            {
+                Id = sensor.Name,
+                Name = sensor.Name
+            });
+        }
+
+        return list;
+    }
+
+    public GpuSample Sample(string? gpuId, string? cpuTempSensor)
+    {
+        try
+        {
+            EnsureOpen();
+        }
+        catch (Exception ex)
+        {
+            CrashLog.Write("HardwareOpen", ex);
+            if (!TryReopen())
+            {
+                return default;
+            }
+        }
+
+        UpdateAll();
+
+        var cpu = Cpus().FirstOrDefault();
+        var gpu = SelectGpu(gpuId);
+        var cpuTemp = ResolveCpuTemp(cpuTempSensor);
+        if (cpuTemp.Value is null
+            && _pawnIo.IsDeviceAccessible()
+            && DateTime.UtcNow >= _nextReopen)
+        {
+            _nextReopen = DateTime.UtcNow.AddSeconds(5);
+            if (TryReopen())
+            {
+                UpdateAll();
+                cpu = Cpus().FirstOrDefault();
+                gpu = SelectGpu(gpuId);
+                cpuTemp = ResolveCpuTemp(cpuTempSensor);
+            }
+        }
+
+        var gpuTemp = FirstValue(gpu, SensorType.Temperature, "GPU Core", "GPU")
+                      ?? FirstValue(gpu, SensorType.Temperature);
+
+        return new GpuSample(
+            CpuName: cpu?.Name,
+            GpuName: gpu?.Name,
+            GpuId: gpu?.Identifier.ToString(),
+            CpuLoad: FirstValue(cpu, SensorType.Load, "CPU Total", "Total"),
+            CpuTemp: ValidTemp(cpuTemp.Value),
+            CpuTempSensorName: cpuTemp.Name,
+            GpuTemp: ValidTemp(gpuTemp),
+            GpuLoad: FirstValue(gpu, SensorType.Load, "GPU Core", "D3D 3D", "GPU") ?? FirstValue(gpu, SensorType.Load),
+            Vram: VramPercent(gpu));
+    }
+
+    public void Dispose()
+    {
+        if (_opened)
+        {
+            _computer.Close();
+        }
+    }
+
+    private void UpdateAll()
+    {
+        foreach (var hardware in _computer.Hardware)
+        {
+            hardware.Update();
+            foreach (var sub in hardware.SubHardware)
+            {
+                sub.Update();
+            }
+        }
+    }
+
+    private IEnumerable<IHardware> Cpus() =>
+        _computer.Hardware.Where(h => h.HardwareType == HardwareType.Cpu);
+
+    private IEnumerable<IHardware> Gpus() =>
+        _computer.Hardware.Where(h =>
+            h.HardwareType is HardwareType.GpuNvidia or HardwareType.GpuAmd or HardwareType.GpuIntel);
+
+    private IHardware? SelectGpu(string? gpuId)
+    {
+        var gpus = Gpus().ToList();
+        if (gpus.Count == 0)
+        {
+            return null;
+        }
+
+        if (!string.IsNullOrWhiteSpace(gpuId))
+        {
+            var match = gpus.FirstOrDefault(g => g.Identifier.ToString() == gpuId);
+            if (match is not null)
+            {
+                return match;
+            }
+        }
+
+        IHardware? best = null;
+        double bestLoad = -1;
+        foreach (var gpu in gpus)
+        {
+            var load = FirstValue(gpu, SensorType.Load, "GPU Core", "D3D 3D", "GPU") ?? 0;
+            if (load >= bestLoad)
+            {
+                bestLoad = load;
+                best = gpu;
+            }
+        }
+
+        return best ?? gpus[0];
+    }
+
+    private (double? Value, string? Name) ResolveCpuTemp(string? overrideName)
+    {
+        var sensors = CpuTempSensors().ToList();
+        if (sensors.Count == 0)
+        {
+            return (null, null);
+        }
+
+        if (!string.IsNullOrWhiteSpace(overrideName))
+        {
+            var named = sensors.FirstOrDefault(s => s.Name.Equals(overrideName, StringComparison.OrdinalIgnoreCase));
+            if (ValidTemp(named?.Value) is { } namedTemp)
+            {
+                return (namedTemp, named!.Name);
+            }
+        }
+
+        foreach (var name in CpuTempPriority)
+        {
+            var match = sensors.FirstOrDefault(s => s.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+            if (ValidTemp(match?.Value) is { } matched)
+            {
+                return (matched, match!.Name);
+            }
+        }
+
+        var ccd = sensors.FirstOrDefault(s =>
+            s.Name.Contains("CCD", StringComparison.OrdinalIgnoreCase) && ValidTemp(s.Value) is not null);
+        if (ccd is not null)
+        {
+            return (ccd.Value, ccd.Name);
+        }
+
+        var any = sensors.FirstOrDefault(s => ValidTemp(s.Value) is not null);
+        return (any?.Value, any?.Name);
+    }
+
+    private IEnumerable<ISensor> CpuTempSensors()
+    {
+        foreach (var cpu in Cpus())
+        {
+            foreach (var sensor in CpuTempsOn(cpu))
+            {
+                yield return sensor;
+            }
+        }
+
+        foreach (var board in _computer.Hardware.Where(h => h.HardwareType == HardwareType.Motherboard))
+        {
+            foreach (var sensor in CpuTempsOn(board))
+            {
+                if (sensor.Name.Contains("CPU", StringComparison.OrdinalIgnoreCase)
+                    || sensor.Name.Contains("Package", StringComparison.OrdinalIgnoreCase)
+                    || sensor.Name.Contains("Tctl", StringComparison.OrdinalIgnoreCase))
+                {
+                    yield return sensor;
+                }
+            }
+        }
+    }
+
+    private static IEnumerable<ISensor> CpuTempsOn(IHardware hardware)
+    {
+        foreach (var sensor in AllSensors(hardware))
+        {
+            if (sensor.SensorType != SensorType.Temperature)
+            {
+                continue;
+            }
+
+            if (sensor.Name.Contains("Distance to TjMax", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            yield return sensor;
+        }
+    }
+
+    private static double? VramPercent(IHardware? gpu)
+    {
+        if (gpu is null)
+        {
+            return null;
+        }
+
+        var used = FirstValue(gpu, SensorType.SmallData, "GPU Memory Used", "Memory Used")
+                   ?? FirstValue(gpu, SensorType.Data, "GPU Memory Used", "Memory Used");
+        var total = FirstValue(gpu, SensorType.SmallData, "GPU Memory Total", "Memory Total")
+                    ?? FirstValue(gpu, SensorType.Data, "GPU Memory Total", "Memory Total");
+        if (used is not null && total is > 0)
+        {
+            return Math.Clamp(used.Value * 100d / total.Value, 0, 100);
+        }
+
+        return FirstValue(gpu, SensorType.Load, "GPU Memory", "Memory");
+    }
+
+    private static double? FirstValue(IHardware? hardware, SensorType type, params string[] names)
+    {
+        if (hardware is null)
+        {
+            return null;
+        }
+
+        var sensors = AllSensors(hardware).Where(s => s.SensorType == type && s.Value is not null).ToList();
+        foreach (var name in names)
+        {
+            var match = sensors.FirstOrDefault(s => s.Name.Equals(name, StringComparison.OrdinalIgnoreCase)
+                                                    || s.Name.Contains(name, StringComparison.OrdinalIgnoreCase));
+            if (match?.Value is not null)
+            {
+                return match.Value;
+            }
+        }
+
+        return names.Length == 0 ? sensors.FirstOrDefault()?.Value : null;
+    }
+
+    private static double? ValidTemp(double? value) => value is > 0 ? value : null;
+
+    private static IEnumerable<ISensor> AllSensors(IHardware hardware)
+    {
+        foreach (var sensor in hardware.Sensors)
+        {
+            yield return sensor;
+        }
+
+        foreach (var sub in hardware.SubHardware)
+        {
+            foreach (var sensor in sub.Sensors)
+            {
+                yield return sensor;
+            }
+        }
+    }
+
+    public readonly record struct GpuSample(
+        string? CpuName,
+        string? GpuName,
+        string? GpuId,
+        double? CpuLoad,
+        double? CpuTemp,
+        string? CpuTempSensorName,
+        double? GpuTemp,
+        double? GpuLoad,
+        double? Vram);
+}
